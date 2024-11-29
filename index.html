@@ -74,46 +74,18 @@
       </div>
       
       <h3>Scoring Weights (Total: 100%)</h3>
-      <div class="formula-block">
-    <div class="formula-title">Score Calculation Steps</div>
-    <div class="formula-step">
-      <div class="step-number">1.</div>
-      <div>Price Score = Normalize price between 0-1
-         (Higher price → higher score)</div>
-    </div>
-    <div class="formula-step">
-      <div class="step-number">2.</div>
-      <div>Prepayment Score = Prepayment% / 100
-         (e.g., 30% → 0.3)</div>
-    </div>
-    <div class="formula-step">
-      <div class="step-number">3.</div>
-      <div>Accuracy Score = Accuracy% / 100
-         (e.g., 90% → 0.9)</div>
-    </div>
-    <div class="formula-step">
-      <div class="step-number">4.</div>
-      <div>Final Score = Price Score × Price Weight +
-                        Prepayment Score × Prepayment Weight +
-                        Accuracy Score × Accuracy Weight</div>
-    </div>
-    <div class="formula-note">
-      All individual scores are between 0-1<br>
-      Weights must total 100% to ensure fair comparison
-    </div>
-  </div>
       
       <div class="grid">
         <div class="input-group">
-          <label>Price Weight (%)</label>
+          <label>Wafer Price Weight (%)</label>
           <input type="number" id="priceWeight" value="40" onchange="updateWeights('price')" />
         </div>
         <div class="input-group">
-          <label>Prepayment Weight (%)</label>
+          <label>Pre-payment Weight (%)</label>
           <input type="number" id="prepaymentWeight" value="30" onchange="updateWeights('prepayment')" />
         </div>
         <div class="input-group">
-          <label>Accuracy Weight (%)</label>
+          <label>Demand Accuracy Weight (%)</label>
           <input type="number" id="accuracyWeight" value="30" onchange="updateWeights('accuracy')" />
         </div>
       </div>
