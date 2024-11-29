@@ -6,60 +6,30 @@
   <style>
     :root { --primary: #2563eb; }
     body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #fff; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 12px; }
-    .card { background: #fff; padding: 16px; margin: 12px 0; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .card { background: #fff; padding: 16px; margin: 12px 0; border: 1px solid #e5e7eb; border-radius: 8px; box-sizing: border-box; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-    .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 8px 0; }
+    .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: start; margin: 8px 0; }
     .input-group { margin-bottom: 12px; }
     label { display: block; margin-bottom: 4px; font-size: 13px; color: #374151; }
-    input { width: 100%; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 4px; }
-    .customer-section { max-width: 100%; overflow: hidden; background: #f9fafb; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
+    input { width: 100%; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 4px; box-sizing: border-box; }
+    .customer-section { max-width: 100%; background: #f9fafb; padding: 16px; border-radius: 6px; margin-bottom: 16px; border: 1px solid #e5e7eb; }
+    .customer-header { font-size: 14px; font-weight: bold; color: #1f2937; margin-bottom: 12px; }
     .results-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f0f9ff; padding: 12px; border-radius: 6px; }
     .chart-container { height: 250px; margin: 16px 0; }
     .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
     .badge-blue { background: #dbeafe; color: #1e40af; }
     .badge-green { background: #d1fae5; color: #065f46; }
-    .help-text { font-size: 13px; color: #6b7280; margin: 8px 0; }
     h2 { font-size: 16px; margin: 0 0 12px 0; color: #111827; }
     h3 { font-size: 14px; margin: 0 0 8px 0; color: #374151; }
     .flex-between { display: flex; justify-content: space-between; align-items: center; }
     .text-sm { font-size: 13px; }
-    .formula-block {
-      background: #f8fafc;
-      border-left: 3px solid #2563eb;
-      font-family: 'JetBrains Mono', 'SF Mono', monospace;
-      line-height: 1.7;
-      padding: 16px 20px;
-      margin: 12px 0;
-    }
-    .formula-title {
-      color: #2563eb;
-      font-size: 12px;
-      font-weight: 500;
-      margin-bottom: 12px;
-    }
-    .formula-step {
-      padding: 4px 0;
-      color: #1e293b;
-      display: grid;
-      grid-template-columns: 30px 1fr;
-      gap: 8px;
-    }
-    .step-number {
-      color: #2563eb;
-      font-weight: 300;
-    }
-    .formula-note {
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid #e2e8f0;
-      color: #64748b;
-      font-size: 10px;
-    }
+    .text-lg { font-size: 14px; font-weight: bold; }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Base Settings -->
     <div class="card">
       <h2>Base Settings</h2>
       <div class="grid">
@@ -74,14 +44,13 @@
       </div>
       
       <h3>Scoring Weights (Total: 100%)</h3>
-      
       <div class="grid">
         <div class="input-group">
           <label>Wafer Price Weight (%)</label>
           <input type="number" id="priceWeight" value="40" onchange="updateWeights('price')" />
         </div>
         <div class="input-group">
-          <label>Pre-payment Weight (%)</label>
+          <label>Prepayment Weight (%)</label>
           <input type="number" id="prepaymentWeight" value="30" onchange="updateWeights('prepayment')" />
         </div>
         <div class="input-group">
@@ -91,11 +60,13 @@
       </div>
     </div>
 
+    <!-- Customer Parameters -->
     <div class="card">
       <h2>Customer Parameters</h2>
       <div id="customerInputs"></div>
     </div>
 
+    <!-- Results -->
     <div class="card">
       <h2>Results</h2>
       <div class="results-summary" id="summary"></div>
@@ -144,8 +115,8 @@
       const container = document.getElementById('customerInputs');
       container.innerHTML = customers.map(customer => `
         <div class="customer-section">
-          <h3>Customer ${customer.id}</h3>
-          <div class="input-grid">
+          <div class="customer-header">Customer ${customer.id}</div>
+          <div class="grid">
             <div class="input-group">
               <label>Volume Ask (wafers)</label>
               <input type="number" id="volume${customer.id}" value="${customer.volume}" onchange="updateCustomer('${customer.id}', 'volume', this.value)" />
@@ -232,19 +203,19 @@
       document.getElementById('summary').innerHTML = `
         <div>
           <div class="text-sm">Total Revenue</div>
-          <div>$${(totalRevenue / 1e6).toFixed(2)}M</div>
+          <div class="text-lg">$${(totalRevenue / 1e6).toFixed(2)}M</div>
         </div>
         <div>
           <div class="text-sm">Total Profit</div>
-          <div>$${(totalProfit / 1e6).toFixed(2)}M</div>
+          <div class="text-lg">$${(totalProfit / 1e6).toFixed(2)}M</div>
         </div>
         <div>
           <div class="text-sm">Capacity Utilization</div>
-          <div>${capacityUtilization}%</div>
+          <div class="text-lg">${capacityUtilization}%</div>
         </div>
         <div>
           <div class="text-sm">Remaining Capacity</div>
-          <div>${remainingCapacity} wafers</div>
+          <div class="text-lg">${remainingCapacity} wafers</div>
         </div>
       `;
 
@@ -314,16 +285,8 @@
       });
     }
 
-    // Initialize
     renderCustomerInputs();
     calculateAndDisplay();
-
-    // Add event listeners
-    document.getElementById('waferCost').addEventListener('change', calculateAndDisplay);
-    document.getElementById('totalCapacity').addEventListener('change', calculateAndDisplay);
-    document.getElementById('priceWeight').addEventListener('change', calculateAndDisplay);
-    document.getElementById('prepaymentWeight').addEventListener('change', calculateAndDisplay);
-    document.getElementById('accuracyWeight').addEventListener('change', calculateAndDisplay);
   </script>
 </body>
 </html>
