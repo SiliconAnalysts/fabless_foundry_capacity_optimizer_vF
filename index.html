@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Foundry Capacity Optimizer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+  <style>
+    :root { --primary: #2563eb; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #fff; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 12px; }
+    .card { background: #fff; padding: 16px; margin: 12px 0; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 8px 0; }
+    .input-group { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 4px; font-size: 13px; color: #374151; }
+    input { width: 100%; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 4px; }
+    .customer-section { max-width: 100%; overflow: hidden; background: #f9fafb; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
+    .results-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f0f9ff; padding: 12px; border-radius: 6px; }
+    .chart-container { height: 250px; margin: 16px 0; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .help-text { font-size: 13px; color: #6b7280; margin: 8px 0; }
+    h2 { font-size: 16px; margin: 0 0 12px 0; color: #111827; }
+    h3 { font-size: 14px; margin: 0 0 8px 0; color: #374151; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .text-sm { font-size: 13px; }
+    .formula-block {
+      background: #f8fafc;
+      border-left: 3px solid #2563eb;
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      line-height: 1.7;
+      padding: 16px 20px;
+      margin: 12px 0;
+    }
+    .formula-title {
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+    .formula-step {
+      padding: 4px 0;
+      color: #1e293b;
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 8px;
+    }
+    .step-number {
+      color: #2563eb;
+      font-weight: 300;
+    }
+    .formula-note {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h2>Base Settings</h2>
+      <div class="grid">
+        <div class="input-group">
+          <label>Manufacturing Cost per Wafer ($)</label>
+          <input type="number" id="waferCost" value="8000" />
+        </div>
+        <div class="input-group">
+          <label>Total Capacity (wafers)</label>
+          <input type="number" id="totalCapacity" value="2000" />
+        </div>
+      </div>
+      
+      <h3>Scoring Weights (Total: 100%)</h3>
+      <div class="formula-block">
+    <div class="formula-title">Score Calculation Steps</div>
+    <div class="formula-step">
+      <div class="step-number">1.</div>
+      <div>Price Score = Normalize price between 0-1
+         (Higher price → higher score)</div>
+    </div>
+    <div class="formula-step">
+      <div class="step-number">2.</div>
+      <div>Prepayment Score = Prepayment% / 100
+         (e.g., 30% → 0.3)</div>
+    </div>
+    <div class="formula-step">
+      <div class="step-number">3.</div>
+      <div>Accuracy Score = Accuracy% / 100
+         (e.g., 90% → 0.9)</div>
+    </div>
+    <div class="formula-step">
+      <div class="step-number">4.</div>
+      <div>Final Score = Price Score × Price Weight +
+                        Prepayment Score × Prepayment Weight +
+                        Accuracy Score × Accuracy Weight</div>
+    </div>
+    <div class="formula-note">
+      All individual scores are between 0-1<br>
+      Weights must total 100% to ensure fair comparison
+    </div>
+  </div>
+      
+      <div class="grid">
+        <div class="input-group">
+          <label>Price Weight (%)</label>
+          <input type="number" id="priceWeight" value="40" onchange="updateWeights('price')" />
+        </div>
+        <div class="input-group">
+          <label>Prepayment Weight (%)</label>
+          <input type="number" id="prepaymentWeight" value="30" onchange="updateWeights('prepayment')" />
+        </div>
+        <div class="input-group">
+          <label>Accuracy Weight (%)</label>
+          <input type="number" id="accuracyWeight" value="30" onchange="updateWeights('accuracy')" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Customer Parameters</h2>
+      <div id="customerInputs"></div>
+    </div>
+
+    <div class="card">
+      <h2>Results</h2>
+      <div class="results-summary" id="summary"></div>
+      <div class="chart-container">
+        <canvas id="allocationChart"></canvas>
+      </div>
+      <div id="customerResults"></div>
+    </div>
+  </div>
+
+  <script>
+    const customers = [
+      { id: 'A', volume: 1000, price: 12000, prepayment: 30, accuracy: 90 },
+      { id: 'B', volume: 800, price: 11000, prepayment: 20, accuracy: 85 },
+      { id: 'C', volume: 1000, price: 14000, prepayment: 10, accuracy: 80 }
+    ];
+
+    let chart;
+
+    function updateWeights(changedWeight) {
+      const weights = {
+        price: Number(document.getElementById('priceWeight').value),
+        prepayment: Number(document.getElementById('prepaymentWeight').value),
+        accuracy: Number(document.getElementById('accuracyWeight').value)
+      };
+      
+      const total = Object.values(weights).reduce((a, b) => a + b, 0);
+      const otherWeights = Object.keys(weights).filter(w => w !== changedWeight);
+      
+      if (total !== 100) {
+        const remainingTotal = Math.max(0, 100 - weights[changedWeight]);
+        const currentOtherTotal = otherWeights.reduce((sum, w) => sum + weights[w], 0);
+        
+        otherWeights.forEach(w => {
+          const newWeight = currentOtherTotal === 0 ? 
+            remainingTotal / otherWeights.length :
+            Math.round((weights[w] / currentOtherTotal) * remainingTotal);
+          document.getElementById(`${w}Weight`).value = newWeight;
+        });
+      }
+      
+      calculateAndDisplay();
+    }
+
+    function renderCustomerInputs() {
+      const container = document.getElementById('customerInputs');
+      container.innerHTML = customers.map(customer => `
+        <div class="customer-section">
+          <h3>Customer ${customer.id}</h3>
+          <div class="input-grid">
+            <div class="input-group">
+              <label>Volume Ask (wafers)</label>
+              <input type="number" id="volume${customer.id}" value="${customer.volume}" onchange="updateCustomer('${customer.id}', 'volume', this.value)" />
+            </div>
+            <div class="input-group">
+              <label>Wafer Price ($)</label>
+              <input type="number" id="price${customer.id}" value="${customer.price}" onchange="updateCustomer('${customer.id}', 'price', this.value)" />
+            </div>
+            <div class="input-group">
+              <label>Prepayment (%)</label>
+              <input type="number" id="prepayment${customer.id}" value="${customer.prepayment}" onchange="updateCustomer('${customer.id}', 'prepayment', this.value)" />
+            </div>
+            <div class="input-group">
+              <label>Demand Accuracy (%)</label>
+              <input type="number" id="accuracy${customer.id}" value="${customer.accuracy}" onchange="updateCustomer('${customer.id}', 'accuracy', this.value)" />
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateCustomer(id, field, value) {
+      const customer = customers.find(c => c.id === id);
+      if (customer) {
+        customer[field] = Number(value);
+        calculateAndDisplay();
+      }
+    }
+
+    function calculateScores() {
+      const weights = {
+        price: Number(document.getElementById('priceWeight').value) / 100,
+        prepayment: Number(document.getElementById('prepaymentWeight').value) / 100,
+        accuracy: Number(document.getElementById('accuracyWeight').value) / 100
+      };
+
+      const maxPrice = Math.max(...customers.map(c => c.price));
+      const minPrice = Math.min(...customers.map(c => c.price));
+      const priceRange = maxPrice - minPrice;
+
+      return customers.map(customer => {
+        const priceScore = (customer.price - minPrice) / priceRange;
+        const prepaymentScore = customer.prepayment / 100;
+        const accuracyScore = customer.accuracy / 100;
+
+        const totalScore = (
+          priceScore * weights.price +
+          prepaymentScore * weights.prepayment +
+          accuracyScore * weights.accuracy
+        ) * 100;
+
+        return { ...customer, score: totalScore };
+      }).sort((a, b) => b.score - a.score);
+    }
+
+    function calculateAndDisplay() {
+      const waferCost = Number(document.getElementById('waferCost').value);
+      const totalCapacity = Number(document.getElementById('totalCapacity').value);
+      const scoredCustomers = calculateScores();
+      
+      let remainingCapacity = totalCapacity;
+      const results = scoredCustomers.map(customer => {
+        const allocation = Math.min(customer.volume, remainingCapacity);
+        remainingCapacity -= allocation;
+        
+        const revenue = allocation * customer.price;
+        const profit = allocation * (customer.price - waferCost);
+        const margin = ((customer.price - waferCost) / customer.price * 100).toFixed(1);
+        
+        return {
+          ...customer,
+          allocation,
+          revenue,
+          profit,
+          margin,
+          fulfillment: (allocation / customer.volume * 100).toFixed(1)
+        };
+      });
+
+      const totalRevenue = results.reduce((sum, r) => sum + r.revenue, 0);
+      const totalProfit = results.reduce((sum, r) => sum + r.profit, 0);
+      const capacityUtilization = ((totalCapacity - remainingCapacity) / totalCapacity * 100).toFixed(1);
+
+      document.getElementById('summary').innerHTML = `
+        <div>
+          <div class="text-sm">Total Revenue</div>
+          <div>$${(totalRevenue / 1e6).toFixed(2)}M</div>
+        </div>
+        <div>
+          <div class="text-sm">Total Profit</div>
+          <div>$${(totalProfit / 1e6).toFixed(2)}M</div>
+        </div>
+        <div>
+          <div class="text-sm">Capacity Utilization</div>
+          <div>${capacityUtilization}%</div>
+        </div>
+        <div>
+          <div class="text-sm">Remaining Capacity</div>
+          <div>${remainingCapacity} wafers</div>
+        </div>
+      `;
+
+      document.getElementById('customerResults').innerHTML = results.map(r => `
+        <div class="customer-section">
+          <div class="flex-between">
+            <h3>Customer ${r.id}</h3>
+            <div>
+              <span class="badge badge-blue">Score: ${r.score.toFixed(1)}</span>
+              <span class="badge badge-green">Fulfillment: ${r.fulfillment}%</span>
+            </div>
+          </div>
+          <div class="grid">
+            <div>
+              <div class="text-sm">Requested: ${r.volume} wafers</div>
+              <div class="text-sm">Allocated: ${r.allocation} wafers</div>
+            </div>
+            <div>
+              <div class="text-sm">Revenue: $${(r.revenue / 1e6).toFixed(2)}M</div>
+              <div class="text-sm">Profit: $${(r.profit / 1e6).toFixed(2)}M</div>
+              <div class="text-sm">Margin: ${r.margin}%</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      updateChart(results);
+    }
+
+    function updateChart(results) {
+      const ctx = document.getElementById('allocationChart').getContext('2d');
+      
+      if (chart) {
+        chart.destroy();
+      }
+
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: results.map(r => `Customer ${r.id}`),
+          datasets: [
+            {
+              label: 'Requested Volume',
+              data: results.map(r => r.volume),
+              backgroundColor: 'rgba(99, 102, 241, 0.7)',
+            },
+            {
+              label: 'Allocated Volume',
+              data: results.map(r => r.allocation),
+              backgroundColor: 'rgba(52, 211, 153, 0.7)',
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Wafers'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Initialize
+    renderCustomerInputs();
+    calculateAndDisplay();
+
+    // Add event listeners
+    document.getElementById('waferCost').addEventListener('change', calculateAndDisplay);
+    document.getElementById('totalCapacity').addEventListener('change', calculateAndDisplay);
+    document.getElementById('priceWeight').addEventListener('change', calculateAndDisplay);
+    document.getElementById('prepaymentWeight').addEventListener('change', calculateAndDisplay);
+    document.getElementById('accuracyWeight').addEventListener('change', calculateAndDisplay);
+  </script>
+</body>
+</html>
